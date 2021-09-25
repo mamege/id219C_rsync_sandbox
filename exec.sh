@@ -25,8 +25,9 @@ function del() {
     rm -rf ${TMP_INTERNAL:?"undefined"} ${TMP_PUBLIC:?"undefined"} 
 }
 
-function backup_tmp_public() {
-    BASEDIR="${TMP_PUBLIC}/backup" #各バックアップディレクトリを格納する親ディレクトリ
+function backup() {
+    BACKUP_TARGET=${1:-$TMP_PUBLIC} #変数展開を利用して外部から引数を取得、与えられない場合は:-以降が代入される。
+    BASEDIR="${BACKUP_TARGET}/backup" #各バックアップディレクトリを格納する親ディレクトリ
 
     # 親ディレクトリが存在しない場合(1回目の実行)は、新規作成する。
     # 存在する場合(2回目以降の実行)は、直近のバックアップディレクトリをLATEST_BACKUPに格納
@@ -39,15 +40,15 @@ function backup_tmp_public() {
     # LATEST_BACKUP変数に値が格納されていない場合(直近のバックアップなし)は、backup-baseという名前のバックアップを作成
     # 格納されている場合は、LATEST_BACKUPを起点に増分バックアップを行う
     NEW_BACKUP=${BASEDIR}/backup-$(date +%m%d-%H%M%S)
-    echo "Save backup of ${TMP_PUBLIC}{ (time:$(date +%F-%H:%M:%S)) to ${NEW_BACKUP}"
+    echo "Save backup of ${BACKUP_TARGET}{ (time:$(date +%F-%H:%M:%S)) to ${NEW_BACKUP}"
     if [ -z "${LATEST_BACKUP}" ]; then
         rsync -a --exclude='.*' --exclude='*/' --include='*.*'\
-         ${TMP_PUBLIC}/ ${NEW_BACKUP}/
+         ${BACKUP_TARGET}/ ${NEW_BACKUP}/
     else
         echo LATEST_BACKUP=$LATEST_BACKUP
         rsync -a --exclude='.*' --exclude='*/' --include='*.*'\
          --link-dest=${BASEDIR}/${LATEST_BACKUP}\
-         ${TMP_PUBLIC}/ ${NEW_BACKUP}/
+         ${BACKUP_TARGET}/ ${NEW_BACKUP}/
     fi
 }
 
@@ -58,20 +59,20 @@ del && init
 # -v: --verbose 詳細情報を表示
 # -h: --human-readable
 
-backup_tmp_public;sleep 1
+backup $TMP_PUBLIC ;sleep 1
 
 rsync -rlth \
   --exclude='.*' --exclude='*/' --include='*.*'\
  ${TMP_INTERNAL:?"undefined"}/ ${TMP_PUBLIC:?"undefined"}/
 
-backup_tmp_public;sleep 1
+backup $TMP_PUBLIC ;sleep 1
 
 echo "2nd edit" > $TMP_INTERNAL/$TARGET
 rsync -rlth \
   --exclude='.*' --exclude='*/' --include='*.*'\
  ${TMP_INTERNAL:?"undefined"}/ ${TMP_PUBLIC:?"undefined"}/
 
-backup_tmp_public;sleep 1
+backup $TMP_PUBLIC ;sleep 1
 
 echo $TMP_PUBLIC
 ls -l --full-time $TMP_PUBLIC/
