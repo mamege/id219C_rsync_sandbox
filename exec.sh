@@ -31,7 +31,8 @@ function backup() {
     # 親ディレクトリが存在しない場合(1回目の実行)は、新規作成する。
     # 存在する場合(2回目以降の実行)は、直近のバックアップディレクトリをLATEST_BACKUPに格納
     if [ ! -d "${BASEDIR}" ]; then
-        mkdir ${BASEDIR}
+        mkdir -m 774 ${BASEDIR}
+        chgrp HPCS-WEB ${BASEDIR}
     else
         LATEST_BACKUP=$(ls ${BASEDIR} | grep backup- | tail -n 1) #直近のディレクトリ / The -1 (that's a one) says one file per line https://stackoverflow.com/questions/15691359/how-can-i-list-ls-the-5-last-modified-files-in-a-directory
     fi
@@ -41,13 +42,13 @@ function backup() {
     NEW_BACKUP=${BASEDIR}/backup-$(date +%m%d-%H%M%S)
     echo "Save backup of ${BACKUP_TARGET} (time:$(date +%F-%H:%M:%S)) to ${NEW_BACKUP}"
     if [ -z "${LATEST_BACKUP}" ]; then
-        rsync -a --exclude='.*' --exclude='*/' --include='*.*'\
-         ${BACKUP_TARGET}/ ${NEW_BACKUP}/
+        rsync -av --exclude='*/' --include='*.*'\
+         ${BACKUP_TARGET}/ ${NEW_BACKUP}
     else
         echo LATEST_BACKUP=$LATEST_BACKUP
-        rsync -a --exclude='.*' --exclude='*/' --include='*.*'\
+        rsync -av --exclude='*/' --include='*.*'\
          --link-dest=${BASEDIR}/${LATEST_BACKUP}\
-         ${BACKUP_TARGET}/ ${NEW_BACKUP}/
+         ${BACKUP_TARGET}/ ${NEW_BACKUP}
     fi
 }
 
@@ -78,6 +79,11 @@ rsync -rltvh \
   --exclude='.*' --exclude='*/' --include='*.*'\
  ${TMP_INTERNAL:?"undefined"}/ ${TMP_PUBLIC:?"undefined"}/
 
+
 echo $BACKUP_DIR 
+
+find $TMP_PUBLIC/ -maxdepth 1 -type f | xargs chgrp HPCS-WEB
+find $TMP_PUBLIC/ -maxdepth 1 -type f | xargs chmod 664
+
 ls -l --full-time $BACKUP_DIR/ | grep -v -E "md|jpg|png|txt|html|pdf"
 find $TMP_PUBLIC/ -type f | grep $TARGET | xargs -L 1 -t tail -n 2
