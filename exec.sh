@@ -26,24 +26,28 @@ function del() {
 }
 
 function backup_tmp_public() {
-    BASEDIR="${TMP_PUBLIC}/backup/" #各バックアップディレクトリを格納する親ディレクトリ
+    BASEDIR="${TMP_PUBLIC}/backup" #各バックアップディレクトリを格納する親ディレクトリ
 
     # 親ディレクトリが存在しない場合(1回目の実行)は、新規作成する。
-    # 存在する場合(2回目以降の実行)は、直近のバックアップディレクトリをLATESTBKUPに格納
+    # 存在する場合(2回目以降の実行)は、直近のバックアップディレクトリをLATEST_BACKUPに格納
     if [ ! -d "${BASEDIR}" ]; then
         mkdir ${BASEDIR}
     else
-        LATESTBKUP=$(ls -1t ${BASEDIR} | head -1) #直近のディレクトリ / The -1 (that's a one) says one file per line https://stackoverflow.com/questions/15691359/how-can-i-list-ls-the-5-last-modified-files-in-a-directory
+        LATEST_BACKUP=$(ls ${BASEDIR} | grep backup- | tail -n 1) #直近のディレクトリ / The -1 (that's a one) says one file per line https://stackoverflow.com/questions/15691359/how-can-i-list-ls-the-5-last-modified-files-in-a-directory
     fi
 
-    # LATESTBKUP変数に値が格納されていない場合(直近のバックアップなし)は、backup-baseという名前のバックアップを作成
-    # 格納されている場合は、LATESTBKUPを起点に増分バックアップを行う
-    if [ -z "${LATESTBKUP}" ]; then
+    # LATEST_BACKUP変数に値が格納されていない場合(直近のバックアップなし)は、backup-baseという名前のバックアップを作成
+    # 格納されている場合は、LATEST_BACKUPを起点に増分バックアップを行う
+    NEW_BACKUP=${BASEDIR}/backup-$(date +%m%d-%H%M%S)
+    echo "Save backup of ${TMP_PUBLIC}{ (time:$(date +%F-%H:%M:%S)) to ${NEW_BACKUP}"
+    if [ -z "${LATEST_BACKUP}" ]; then
         rsync -a --exclude='.*' --exclude='*/' --include='*.*'\
-            ${TMP_PUBLIC}/ ${BASEDIR}/backup-base
+         ${TMP_PUBLIC}/ ${NEW_BACKUP}/
     else
+        echo LATEST_BACKUP=$LATEST_BACKUP
         rsync -a --exclude='.*' --exclude='*/' --include='*.*'\
-         --link-dest=${BASEDIR}/${LATESTBKUP} ${TMP_PUBLIC}/ ${BASEDIR}/backup-$(date +%Y-%m-%d)
+         --link-dest=${BASEDIR}/${LATEST_BACKUP}\
+         ${TMP_PUBLIC}/ ${NEW_BACKUP}/
     fi
 }
 
@@ -54,13 +58,20 @@ del && init
 # -v: --verbose 詳細情報を表示
 # -h: --human-readable
 
-backup_tmp_public
+backup_tmp_public;sleep 1
 
 rsync -rlth \
   --exclude='.*' --exclude='*/' --include='*.*'\
  ${TMP_INTERNAL:?"undefined"}/ ${TMP_PUBLIC:?"undefined"}/
 
-backup_tmp_public
+backup_tmp_public;sleep 1
+
+echo "2nd edit" > $TMP_INTERNAL/$TARGET
+rsync -rlth \
+  --exclude='.*' --exclude='*/' --include='*.*'\
+ ${TMP_INTERNAL:?"undefined"}/ ${TMP_PUBLIC:?"undefined"}/
+
+backup_tmp_public;sleep 1
 
 echo $TMP_PUBLIC
 ls -l --full-time $TMP_PUBLIC/
