@@ -16,6 +16,9 @@ function init() {
     sleep 1
     echo "1st edit" > $TMP_INTERNAL/$TARGET
     echo "same file" > $TMP_INTERNAL/same_contents_file.txt
+
+    # 余計なdirctory
+    mkdir -p $TMP_INTERNAL/deleteme && echo "deleteme" > $TMP_INTERNAL/deleteme/deleteme.txt
 }
 
 function del() {
@@ -31,18 +34,20 @@ del && init
 echo "rsync <option> src/ dst/"
 rsync -rlth \
  ${TMP_INTERNAL:?"undefined"}/ ${TMP_PUBLIC:?"undefined"}/
+
+echo $TMP_PUBLIC
 ls -l --full-time $TMP_PUBLIC/ && cat $TMP_PUBLIC/$TARGET
 
 
 del && init  
 
-# -r: --links 指定パスのみならず、配下にあるファイルおよびディレクトリをcopy
-# -l: --recursive シンボリックリンクをシンボリックリンクのままコピー
-# -v: --verbose 詳細情報を表示
-# -h: ?? 読みやすくする
-echo "rsync <option> src dst"
+echo "rsync <option> src/ dst/"
 rsync -rlth \
- ${TMP_INTERNAL:?"undefined"} ${TMP_PUBLIC:?"undefined"}
+  --exclude='.*' --exclude='*/' --include='*.*'\
+ ${TMP_INTERNAL:?"undefined"}/ ${TMP_PUBLIC:?"undefined"}/
+
+echo $TMP_PUBLIC
 ls -l --full-time $TMP_PUBLIC/ && cat $TMP_PUBLIC/$TARGET
+
 
 del 
